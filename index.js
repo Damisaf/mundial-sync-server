@@ -1,8 +1,17 @@
 const admin = require('firebase-admin');
 const axios = require('axios');
 
-// Inicializar Firebase (necesitarás descargar tu JSON de credenciales)
-const serviceAccount = require('./firebase-key.json');
+// Inicializar Firebase desde variable de entorno
+let serviceAccount;
+
+if (process.env.FIREBASE_KEY_BASE64) {
+  // Si está en base64 (Render)
+  const keyString = Buffer.from(process.env.FIREBASE_KEY_BASE64, 'base64').toString('utf8');
+  serviceAccount = JSON.parse(keyString);
+} else {
+  // Si está en archivo local (desarrollo)
+  serviceAccount = require('./firebase-key.json');
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
