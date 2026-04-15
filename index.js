@@ -20,6 +20,7 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const SPORTSDB_KEY = '123';
+const API_FOOTBALL_KEY = '165297c0ab6926b039a76020ae54b9c2';
 
 // Torneos a sincronizar
 const TOURNAMENTS = {
@@ -46,6 +47,51 @@ async function fetchRoundData(leagueId, round, season) {
   } catch (error) {
     console.error(`Error fetching round ${round}:`, error.message);
     return [];
+  }
+}
+
+// Función para obtener tarjetas de API-Football
+async function fetchCardsFromAPIFootball(apiFootballId) {
+  try {
+    const url = `https://v3.football.api-sports.io/fixtures?id=${apiFootballId}`;
+    const response = await axios.get(url, {
+      headers: { 'x-apisports-key': API_FOOTBALL_KEY }
+    });
+    
+    if (response.data.response && response.data.response.length > 0) {
+      const fixture = response.data.response[0];
+      const cards = {
+        homeYellows: 0,
+        homeReds: 0,
+        awayYellows: 0,
+        awayReds: 0,
+        totalYellows: 0,
+        totalReds: 0
+      };
+      
+      if (fixture.events) {
+        fixture.events.forEach(event => {
+          if (event.type === 'Card') {
+            if (event.team.id === fixture.teams.home.id) {
+              if (event.detail === 'Yellow Card') cards.homeYellows++;
+              if (event.detail === 'Red Card') cards.homeReds++;
+            } else {
+              if (event.detail === 'Yellow Card') cards.awayYellows++;
+              if (event.detail === 'Red Card') cards.awayReds++;
+            }
+          }
+        });
+      }
+      
+      cards.totalYellows = cards.homeYellows + cards.awayYellows;
+      cards.totalReds = cards.homeReds + cards.awayReds;
+      
+      return cards;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error fetching cards for match ${apiFootballId}:`, error.message);
+    return null;
   }
 }
 
@@ -121,12 +167,14 @@ async function syncTournament(tournamentKey) {
       const hasChanged = cached.homeScore !== homeScore || cached.awayScore !== awayScore;
       if (hasChanged) {
         const result = homeScore > awayScore ? '1' : homeScore === awayScore ? 'X' : '2';
+        const apiFootballId = e.idAPIfootball || null;
         
         updates[matchId] = {
           homeScore,
           awayScore,
           result,
           status: 'finished',
+          idAPIfootball: apiFootballId,
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         };
         
@@ -134,6 +182,23 @@ async function syncTournament(tournamentKey) {
         updatedCount++;
       }
     });
+    
+    // Obtener tarjetas para partidos finalizados
+    console.log(`   🟨 Obteniendo tarjetas de API-Football...`);
+    for (const [matchId, data] of Object.entries(updates)) {
+      if (data.idAPIfootball) {
+        const cards = await fetchCardsFromAPIFootball(data.idAPIfootball);
+        if (cards) {
+          data.homeYellows = cards.homeYellows;
+          data.homeReds = cards.homeReds;
+          data.awayYellows = cards.awayYellows;
+          data.awayReds = cards.awayReds;
+          data.totalYellows = cards.totalYellows;
+          data.totalReds = cards.totalReds;
+          console.log(`      ${matchId}: ${cards.totalYellows}🟨 ${cards.totalReds}🟥`);
+        }
+      }
+    }
     
     // Guardar en Firebase
     if (updatedCount > 0) {
