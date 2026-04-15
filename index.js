@@ -183,10 +183,36 @@ async function syncTournament(tournamentKey) {
       }
     });
     
-    // Obtener tarjetas para partidos finalizados
-    console.log(`   🟨 Obteniendo tarjetas de API-Football...`);
+    // Obtener tarjetas para TODOS los partidos finalizados
+    console.log(`   🟨 Obteniendo tarjetas de API-Football para todos los partidos finalizados...`);
+    const batch = db.batch();
+    let totalWithCards = 0;
+    
+    for (const [matchId, match] of Object.entries(matches)) {
+      // Si el partido está terminado y tiene idAPIfootball, obtener tarjetas
+      if ((match.status === 'finished' || match.result) && match.idAPIfootball) {
+        const cards = await fetchCardsFromAPIFootball(match.idAPIfootball);
+        if (cards && (!match.totalYellows || !match.totalReds)) {
+          // Solo actualizar si no tiene tarjetas aún
+          const ref = db.collection(tour.collection).doc(matchId);
+          batch.update(ref, {
+            homeYellows: cards.homeYellows,
+            homeReds: cards.homeReds,
+            awayYellows: cards.awayYellows,
+            awayReds: cards.awayReds,
+            totalYellows: cards.totalYellows,
+            totalReds: cards.totalReds,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          totalWithCards++;
+          console.log(`      ${matchId}: ${cards.totalYellows}🟨 ${cards.totalReds}🟥`);
+        }
+      }
+    }
+    
+    // También agregar tarjetas a los partidos que se acaban de actualizar (si no las tiene)
     for (const [matchId, data] of Object.entries(updates)) {
-      if (data.idAPIfootball) {
+      if (data.idAPIfootball && !data.totalYellows) {
         const cards = await fetchCardsFromAPIFootball(data.idAPIfootball);
         if (cards) {
           data.homeYellows = cards.homeYellows;
@@ -204,14 +230,15 @@ async function syncTournament(tournamentKey) {
     if (updatedCount > 0) {
       console.log(`   💾 Guardando ${updatedCount} cambios en BD...`);
       
-      const batch = db.batch();
       Object.entries(updates).forEach(([matchId, data]) => {
         const ref = db.collection(tour.collection).doc(matchId);
         batch.update(ref, data);
       });
-      
+    }
+    
+    if (totalWithCards > 0 || updatedCount > 0) {
       await batch.commit();
-      console.log(`   ✅ Guardado exitoso`);
+      console.log(`   ✅ Guardado exitoso (${updatedCount} actualizados, ${totalWithCards} con tarjetas agregadas)`);
     } else {
       console.log(`   ℹ️  Sin cambios para guardar`);
     }
