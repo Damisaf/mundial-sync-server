@@ -57,6 +57,8 @@ async function fetchCardsFromTheSportsDB(eventId) {
     const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventslookup.php?id=${eventId}`;
     const response = await axios.get(url);
     
+    console.log(`         [DEBUG] EventID: ${eventId}, Response: ${JSON.stringify(response.data).substring(0, 100)}`);
+    
     if (response.data.results && response.data.results.length > 0) {
       const event = response.data.results[0];
       const cards = {
@@ -71,11 +73,14 @@ async function fetchCardsFromTheSportsDB(eventId) {
       cards.totalYellows = cards.homeYellows + cards.awayYellows;
       cards.totalReds = cards.homeReds + cards.awayReds;
       
+      console.log(`         [CARDS FOUND] ${eventId}: ${cards.totalYellows}🟨 ${cards.totalReds}🟥`);
       return cards;
+    } else {
+      console.log(`         [NO DATA] EventID: ${eventId} - Sin resultados en TheSportsDB`);
     }
     return null;
   } catch (error) {
-    // Ignorar silenciosamente si no encuentra datos
+    console.log(`         [ERROR] EventID: ${eventId} - ${error.message}`);
     return null;
   }
 }
@@ -170,12 +175,15 @@ async function syncTournament(tournamentKey) {
     
     // Obtener tarjetas para TODOS los partidos finalizados
     console.log(`   🟨 Obteniendo tarjetas de TheSportsDB para todos los partidos finalizados...`);
+    console.log(`   📊 Partidos finalizados encontrados: ${Object.entries(matches).filter(([_, m]) => m.status === 'finished' || m.result).length}`);
+    
     const batch = db.batch();
     let totalWithCards = 0;
     
     for (const [matchId, match] of Object.entries(matches)) {
       // Si el partido está terminado y tiene idEvent, obtener tarjetas
       if ((match.status === 'finished' || match.result) && match.idEvent) {
+        console.log(`      Procesando: ${matchId} (idEvent: ${match.idEvent})`);
         const cards = await fetchCardsFromTheSportsDB(match.idEvent);
         if (cards && (!match.totalYellows || !match.totalReds)) {
           // Solo actualizar si no tiene tarjetas aún
@@ -190,7 +198,7 @@ async function syncTournament(tournamentKey) {
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
           });
           totalWithCards++;
-          console.log(`      ${matchId}: ${cards.totalYellows}🟨 ${cards.totalReds}🟥`);
+          console.log(`      ✅ Tarjetas guardadas para ${matchId}`);
         }
       }
     }
