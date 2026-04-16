@@ -164,7 +164,7 @@ async function syncTournament(tournamentKey) {
           awayScore,
           result,
           status: 'finished',
-          idEvent: e.idEvent,
+          fixtureId: e.idEvent,
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         };
         
@@ -181,10 +181,10 @@ async function syncTournament(tournamentKey) {
     let totalWithCards = 0;
     
     for (const [matchId, match] of Object.entries(matches)) {
-      // Si el partido está terminado y tiene idEvent, obtener tarjetas
-      if ((match.status === 'finished' || match.result) && match.idEvent) {
-        console.log(`      Procesando: ${matchId} (idEvent: ${match.idEvent})`);
-        const cards = await fetchCardsFromTheSportsDB(match.idEvent);
+      // Si el partido está terminado y tiene fixtureId, obtener tarjetas
+      if ((match.status === 'finished' || match.result) && match.fixtureId) {
+        console.log(`      Procesando: ${matchId} (fixtureId: ${match.fixtureId})`);
+        const cards = await fetchCardsFromTheSportsDB(match.fixtureId);
         if (cards && (!match.totalYellows || !match.totalReds)) {
           // Solo actualizar si no tiene tarjetas aún
           const ref = db.collection(tour.collection).doc(matchId);
@@ -205,8 +205,8 @@ async function syncTournament(tournamentKey) {
     
     // También agregar tarjetas a los partidos que se acaban de actualizar (si no las tiene)
     for (const [matchId, data] of Object.entries(updates)) {
-      if (data.idEvent && !data.totalYellows) {
-        const cards = await fetchCardsFromTheSportsDB(data.idEvent);
+      if (data.fixtureId && !data.totalYellows) {
+        const cards = await fetchCardsFromTheSportsDB(data.fixtureId);
         if (cards) {
           data.homeYellows = cards.homeYellows;
           data.homeReds = cards.homeReds;
