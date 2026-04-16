@@ -53,7 +53,8 @@ async function fetchRoundData(leagueId, round, season) {
 // Función para obtener tarjetas de TheSportsDB
 async function fetchCardsFromTheSportsDB(eventId) {
   try {
-    const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventslast.php?id=${eventId}`;
+    // Usar el endpoint de evento específico
+    const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventslookup.php?id=${eventId}`;
     const response = await axios.get(url);
     
     if (response.data.results && response.data.results.length > 0) {
@@ -74,7 +75,7 @@ async function fetchCardsFromTheSportsDB(eventId) {
     }
     return null;
   } catch (error) {
-    console.error(`Error fetching cards for event ${eventId}:`, error.message);
+    // Ignorar silenciosamente si no encuentra datos
     return null;
   }
 }
