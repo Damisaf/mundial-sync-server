@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a1628">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Apuestas Deportivas">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="shortcut icon" href="favicon.svg">
+  <title>Apuestas Deportivas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-ball">⚽</div>
+  <h1 class="splash-title">APUESTAS<br>DEPORTIVAS</h1>
+  
+</div>
+
+<!-- AUTH -->
+<div id="screen-auth" class="screen hidden">
+  <div class="auth-wrap">
+    <div class="logo">
+      <div class="logo-icon">⚽</div>
+      <h1>APUESTAS<br>DEPORTIVAS</h1>
+      
+    </div>
+
+    <div id="form-login" class="card">
+      <h2 class="card-title">Entrar</h2>
+      <div class="field"><label>Nombre del grupo</label><input type="text" id="login-group" placeholder="ej: Los Vecinos"></div>
+      <div class="field"><label>Usuario</label><input type="text" id="login-user" placeholder="tu usuario" autocomplete="username"></div>
+      <div class="field">
+        <label>Contraseña</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" style="flex:1">
+          <button type="button" id="eye-login-pass" onclick="togglePass('login-pass')" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px;color:var(--text2)">👁️</button>
+        </div>
+      </div>
+      <div id="login-error" class="msg-error"></div>
+      <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+      <button class="link-btn" onclick="toggleForms()">¿No tenés cuenta? Registrate</button>
+    </div>
+
+    <div id="form-register" class="card hidden">
+      <h2 class="card-title">Crear cuenta</h2>
+      <div class="field"><label>Nombre del grupo</label><input type="text" id="reg-group" placeholder="ej: Los Vecinos"></div>
+      <div class="field"><label>Nombre de usuario</label><input type="text" id="reg-user" placeholder="ej: marito_10" autocomplete="username"></div>
+      <div class="field">
+        <label>Contraseña</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="password" id="reg-pass" placeholder="••••••" autocomplete="new-password" style="flex:1">
+          <button type="button" id="eye-reg-pass" onclick="togglePass('reg-pass')" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px;color:var(--text2)">👁️</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Repetir contraseña</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="password" id="reg-pass2" placeholder="••••••" autocomplete="new-password" style="flex:1">
+          <button type="button" id="eye-reg-pass2" onclick="togglePass('reg-pass2')" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px;color:var(--text2)">👁️</button>
+        </div>
+      </div>
+      <div id="reg-error" class="msg-error"></div>
+      <button class="btn btn-primary" onclick="doRegister()">Crear mi cuenta</button>
+      <button class="link-btn" onclick="toggleForms()">Ya tengo cuenta</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOURNAMENT SELECTOR -->
+<div id="screen-selector" class="screen hidden">
+  <div class="selector-wrap">
+
+    <!-- SUPER ADMIN PANEL -->
+    <div id="super-admin-panel" class="hidden">
+      <!-- Main menu with 3 cards -->
+      <div id="super-admin-menu">
+        <div class="selector-logo">
+          <div class="logo-icon">⚙️</div>
+          <h1>PANEL<br>GENERAL</h1>
+        </div>
+        <div class="group-admin-cards">
+          <div class="group-admin-card" onclick="superAdminSection('config')">
+            <div class="ga-icon">⚙️</div>
+            <div class="ga-title">Configuración general</div>
+            <div class="ga-desc">Título, puntos y reseteo</div>
+          </div>
+          <div class="group-admin-card" onclick="superAdminSection('grupos')">
+            <div class="ga-icon">👥</div>
+            <div class="ga-title">Grupos</div>
+            <div class="ga-desc">Crear y gestionar grupos</div>
+          </div>
+          <div class="group-admin-card" onclick="superAdminSection('torneos')">
+            <div class="ga-icon">🏆</div>
+            <div class="ga-title">Torneos</div>
+            <div class="ga-desc">Sincronizar y configurar torneos</div>
+          </div>
+        </div>
+        <button class="link-btn" style="margin-top:20px;display:block;text-align:center" onclick="logout()">Cerrar sesión</button>
+      </div>
+
+      <!-- Section content -->
+      <div id="super-admin-section" style="display:none">
+        <button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="backToSuperAdminMenu()">‹ Volver al menú</button>
+        <div id="super-admin-section-content"></div>
+      </div>
+
+      <!-- Create group modal inline -->
+      <div id="create-group-form" class="card hidden" style="margin-top:12px">
+        <h3 class="card-subtitle">Nuevo grupo</h3>
+        <div class="field"><label>Nombre del grupo</label><input type="text" id="sg-new-name" placeholder="ej: Los Vecinos"></div>
+        <div class="field"><label>Usuario administrador</label><input type="text" id="sg-new-admin" placeholder="ej: admin_vecinos"></div>
+        <div class="field">
+          <label>Contraseña</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="password" id="sg-new-pass" placeholder="••••••" style="flex:1">
+            <button type="button" onclick="togglePass('sg-new-pass')" id="eye-sg-new-pass" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px;color:var(--text2)">👁️</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Repetir contraseña</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="password" id="sg-new-pass2" placeholder="••••••" style="flex:1">
+            <button type="button" onclick="togglePass('sg-new-pass2')" id="eye-sg-new-pass2" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:16px;color:var(--text2)">👁️</button>
+          </div>
+        </div>
+        <div class="field"><label>Torneos habilitados</label>
+          <div id="sg-new-tournaments" style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="createGroupFromSelector()">Crear</button>
+          <button class="btn btn-ghost btn-sm" onclick="hideCreateGroupModal()">Cancelar</button>
+        </div>
+        <div id="sg-create-msg" class="msg-success"></div>
+      </div>
+    </div>
+
+    <!-- TOURNAMENT PICKER (for regular users) -->
+    <div id="tournament-cards">
+      <div class="selector-logo">
+        <div class="logo-icon">🏆</div>
+        <h1>ELEGÍ<br>TU TORNEO</h1>
+        
+      </div>
+      <div class="tournament-card tournament-card-item" data-tournament="mundial" onclick="selectTournament('mundial')">
+        <div class="tournament-icon">⚽</div>
+        <div class="tournament-info">
+          <div class="tournament-name">Mundial 2026</div>
+          <div class="tournament-desc">USA · México · Canadá</div>
+        </div>
+        <div class="tournament-arrow">›</div>
+      </div>
+      <div class="tournament-card tournament-card-item" data-tournament="liga" onclick="selectTournament('liga')">
+        <div class="tournament-icon">🇦🇷</div>
+        <div class="tournament-info">
+          <div class="tournament-name">Liga Argentina</div>
+          <div class="tournament-desc">Liga Profesional de Fútbol</div>
+        </div>
+        <div class="tournament-arrow">›</div>
+      </div>
+      <button class="link-btn" onclick="logout()">Cerrar sesión</button>
+    </div>
+
+    <!-- SUPER ADMIN TOURNAMENT PANEL -->
+    <div id="super-tournament-panel" class="hidden">
+      <div class="selector-logo">
+        <div class="logo-icon">⚽</div>
+        <h1>CONFIGURACIÓN<br>DE TORNEOS</h1>
+        <span>ADMINISTRADOR GENERAL</span>
+      </div>
+
+      <!-- Dynamic tournament list -->
+      <div id="admin-tournament-list"></div>
+
+      <!-- Add new tournament from API -->
+      <div class="card" style="margin-top:12px">
+        <h3 class="card-subtitle">Agregar torneo</h3>
+        <div id="tn-msg" class="msg-success"></div>
+        <div id="tn-available-list"><p class="hint">Cargando torneos disponibles...</p></div>
+      </div>
+
+      <button class="btn btn-ghost" style="margin-top:8px" onclick="backToGroupAdmin()">‹ Volver a grupos</button>
+      <button class="link-btn" onclick="logout()">Cerrar sesión</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="screen-app" class="screen hidden">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-left" style="display:flex;align-items:center;gap:8px">
+      <button onclick="backToSelector()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px;line-height:1" title="Volver">‹</button>
+      <span class="header-logo" id="header-logo">⚽ APUESTAS DEPORTIVAS</span>
+    </div>
+    <div class="header-right">
+      <button class="notif-btn" id="notif-toggle" onclick="toggleNotifications()" title="Notificaciones">🔔</button>
+      <div class="user-chip" onclick="logout()">
+        <span id="header-username">—</span>
+        <span class="chip-exit">✕</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- NOTIFICATION TOAST -->
+  <div id="toast" class="toast hidden"></div>
+  <span id="current-tournament-label" class="hidden"></span>
+
+  <!-- NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="partidos" onclick="showTab('partidos')">
+      <span class="nav-icon">🏟️</span><span>Partidos</span>
+    </button>
+    <button class="nav-btn" data-tab="tabla" onclick="showTab('tabla')">
+      <span class="nav-icon">🏆</span><span>Posiciones</span>
+    </button>
+    <button class="nav-btn" data-tab="chat" onclick="showTab('chat')">
+      <span class="nav-icon">💬</span><span>Chat</span>
+    </button>
+    <button class="nav-btn hidden" id="btn-admin-nav" data-tab="admin" onclick="showTab('admin')">
+      <span class="nav-icon">⚙️</span><span>Admin</span>
+    </button>
+  </nav>
+
+  <!-- CONTENT -->
+  <main class="app-main">
+
+    <!-- PARTIDOS -->
+    <div id="tab-partidos" class="tab-content active">
+      <div class="tab-header">
+        <h2>Partidos</h2>
+        <div class="filter-row" id="stage-filters"></div>
+      </div>
+      <div id="matches-container"></div>
+    </div>
+
+    <!-- ESPECIALES -->
+    <div id="tab-especiales" class="tab-content hidden">
+      <div class="tab-header"><h2>Predicciones especiales</h2></div>
+      <div id="specials-container"></div>
+    </div>
+
+    <!-- TABLA -->
+    <div id="tab-tabla" class="tab-content hidden">
+      <div class="tab-header"><h2>Tabla de posiciones</h2></div>
+      <div class="pts-legend" id="pts-legend">
+        <!-- Se genera dinámicamente en JavaScript -->
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table class="standings-table">
+          <thead><tr><th>#</th><th>Jugador</th><th>✓</th><th>⚡</th><th>⚽</th><th>PTS</th></tr></thead>
+          <tbody id="standings-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="tab-admin" class="tab-content hidden">
+      <div class="tab-header">
+        <h2>Panel admin</h2>
+        <span class="admin-badge">★ Admin</span>
+      </div>
+      <!-- Super admin tabs -->
+      <div class="admin-tabs" id="admin-tabs-super">
+        <button class="atab active" onclick="adminSection('partidos')">Partidos</button>
+        <button class="atab" onclick="adminSection('especiales')">Especiales</button>
+        <button class="atab" onclick="adminSection('usuarios')">Usuarios</button>
+        <button class="atab" id="btn-grupos-tab" onclick="adminSection('grupos')">Grupos</button>
+      </div>
+
+      <!-- Group admin menu (4 big option cards) -->
+      <div id="group-admin-menu" class="hidden">
+        <div class="group-admin-cards">
+          <div class="group-admin-card" onclick="groupAdminSection('nombre')">
+            <div class="ga-icon">✏️</div>
+            <div class="ga-title">Nombre del grupo</div>
+            <div class="ga-desc">Cambiar el nombre que ven los usuarios</div>
+          </div>
+          <div class="group-admin-card" onclick="groupAdminSection('usuarios')">
+            <div class="ga-icon">👥</div>
+            <div class="ga-title">Usuarios</div>
+            <div class="ga-desc">Ver, gestionar y blanquear claves</div>
+          </div>
+          <div class="group-admin-card" onclick="groupAdminSection('especiales')">
+            <div class="ga-icon">⭐</div>
+            <div class="ga-title">Apuestas especiales</div>
+            <div class="ga-desc">Crear predicciones especiales por torneo</div>
+          </div>
+          <div class="group-admin-card" onclick="groupAdminSection('torneos')">
+            <div class="ga-icon">🏆</div>
+            <div class="ga-title">Torneos disponibles</div>
+            <div class="ga-desc">Activar o desactivar torneos para el grupo</div>
+          </div>
+        </div>
+        <button class="link-btn" style="margin-top:20px;display:block;text-align:center" onclick="logout()">Cerrar sesión</button>
+      </div>
+
+      <!-- Group admin sections (shown when a card is selected) -->
+      <div id="group-admin-section" class="hidden">
+        <button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="backToGroupAdminMenu()">‹ Volver al menú</button>
+        <div id="group-admin-section-content"></div>
+      </div>
+
+      <!-- Admin: Partidos -->
+      <div id="asec-partidos" class="hidden">
+        <div class="card" id="scoring-config-section">
+          <h3 class="card-subtitle">Sistema de puntos del grupo</h3>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+            <div class="field" style="flex:1;min-width:80px">
+              <label>Resultado correcto</label>
+              <input type="number" id="sc-result" value="1" min="0" max="20" style="text-align:center;font-size:18px;font-weight:600">
+            </div>
+            <div class="field" style="flex:1;min-width:80px">
+              <label>Marcador exacto</label>
+              <input type="number" id="sc-exact" value="3" min="0" max="20" style="text-align:center;font-size:18px;font-weight:600">
+            </div>
+            <div class="field" style="flex:1;min-width:80px">
+              <label>Penales correctos</label>
+              <input type="number" id="sc-penalty" value="3" min="0" max="20" style="text-align:center;font-size:18px;font-weight:600">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveScoringConfig()">Guardar puntos</button>
+        </div>
+        <div class="card">
+          <h3 class="card-subtitle">Sincronizar desde API</h3>
+          <p class="hint" id="sync-hint">Trae los partidos del torneo seleccionado automáticamente desde la API.</p>
+          <button class="btn btn-primary" onclick="syncMatches()">🔄 Sincronizar partidos</button>
+          <div id="sync-msg" class="msg-success"></div>
+        </div>
+        <div id="admin-matches-list"></div>
+      </div>
+
+      <!-- Admin: Especiales -->
+      <div id="asec-especiales" class="hidden">
+        <!-- Content rendered dynamically by JS -->
+        <!-- For super admin: static form below -->
+        <div id="especiales-static">
+          <div class="card">
+            <h3 class="card-subtitle">Nueva predicción especial</h3>
+            <div class="field"><label>Pregunta</label><input type="text" id="sp-question" placeholder="ej: ¿Quién será el campeón?"></div>
+            <div class="field"><label>Puntos al acertar</label><input type="number" id="sp-points" placeholder="ej: 10" min="1" max="100"></div>
+            <div class="field"><label>Fecha límite</label><input type="datetime-local" id="sp-deadline"></div>
+            <div class="field">
+              <label>Tipo de respuesta</label>
+              <select id="sp-type" onchange="toggleSpOptions()">
+                <option value="text">Texto libre</option>
+                <option value="options">Lista de opciones</option>
+              </select>
+            </div>
+            <div id="sp-options-wrap" class="hidden">
+              <div class="field"><label>Opciones (una por línea)</label><textarea id="sp-options" rows="4" placeholder="Argentina&#10;Brasil&#10;Francia&#10;España"></textarea></div>
+            </div>
+            <button class="btn btn-primary" onclick="addSpecial()">Agregar predicción</button>
+            <div id="sp-msg" class="msg-success"></div>
+          </div>
+          <div id="admin-specials-list"></div>
+        </div>
+      </div>
+
+      <!-- Admin: Jugadores -->
+      <div id="asec-usuarios" class="hidden">
+        <div class="card">
+          <h3 class="card-subtitle">Nombre del grupo</h3>
+          <p class="hint">Este nombre aparece en el encabezado de la app para todos los usuarios.</p>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="group-name-input" placeholder="ej: Los vecinos del barrio" style="flex:1">
+            <button class="btn btn-primary btn-sm" onclick="saveGroupName()">Guardar</button>
+          </div>
+        </div>
+        <div class="card" id="users-list-wrap">
+          <p class="hint">Cargando usuarios...</p>
+        </div>
+      </div>
+
+      <!-- Admin: Grupos -->
+      <div id="asec-grupos" class="hidden">
+        <div class="card">
+          <h3 class="card-subtitle">Crear nuevo grupo</h3>
+          <div class="field"><label>Nombre del grupo</label><input type="text" id="new-group-name" placeholder="ej: Los Vecinos del Barrio"></div>
+          <div class="field"><label>Usuario administrador del grupo</label><input type="text" id="new-group-admin" placeholder="ej: admin_vecinos"></div>
+          <div class="field"><label>Contraseña del administrador</label><input type="password" id="new-group-admin-pass" placeholder="••••••"></div>
+          <button class="btn btn-primary" style="margin-top:4px" onclick="createGroup()">Crear grupo</button>
+          <div id="group-create-msg" class="msg-success"></div>
+        </div>
+        <div class="card" id="groups-list-wrap">
+          <p class="hint">Cargando grupos...</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CHAT -->
+    <div id="tab-chat" class="tab-content hidden">
+      <div class="tab-header"><h2>Chat del grupo</h2></div>
+      <div class="chat-wrap">
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Escribí algo..." maxlength="300" onkeydown="chatKeydown(event)">
+          <button class="chat-send-btn" onclick="sendChatMsg()">➤</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module" src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      // Listen for new version message from SW
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        if (e.data?.type === 'NEW_VERSION') {
+          window.location.reload();
+        }
+      });
+      // Also handle controller change
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') {
+            newWorker.postMessage('skipWaiting');
+          }
+        });
+      });
+    } catch(e) {}
+  });
+}
+</script>
+
+<!-- MOSTRAR SPINNERS DE INPUT NUMBER -->
+<style>
+  input[type="number"] {
+    appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: inner-spin-button;
+    appearance: inner-spin-button;
+    display: block;
+    cursor: pointer;
+  }
+  .score-pred-input::-webkit-outer-spin-button,
+  .score-pred-input::-webkit-inner-spin-button {
+    -webkit-appearance: inner-spin-button;
+    appearance: inner-spin-button;
+    display: block !important;
+    cursor: pointer;
+  }
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+</style>
+
+<!-- SCRIPTS -->
+<script type="module" src="app.js"></script>
+
+</body>
+</html>
