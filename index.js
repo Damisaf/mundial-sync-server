@@ -50,37 +50,50 @@ async function fetchRoundData(leagueId, round, season) {
   }
 }
 
-// Función para obtener tarjetas de TheSportsDB
-async function fetchCardsFromTheSportsDB(eventId) {
+// Función para obtener tarjetas de API-Football
+async function fetchCardsFromAPIFootball(fixtureId) {
   try {
-    // Usar el endpoint de evento específico
-    const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventslookup.php?id=${eventId}`;
-    const response = await axios.get(url);
+    const url = `https://v3.football.api-sports.io/fixtures?id=${fixtureId}`;
+    const response = await axios.get(url, {
+      headers: { 'x-apisports-key': API_FOOTBALL_KEY }
+    });
     
-    console.log(`         [DEBUG] EventID: ${eventId}, Response: ${JSON.stringify(response.data).substring(0, 100)}`);
-    
-    if (response.data.results && response.data.results.length > 0) {
-      const event = response.data.results[0];
+    if (response.data.response && response.data.response.length > 0) {
+      const fixture = response.data.response[0];
       const cards = {
-        homeYellows: parseInt(event.intYellowHome || 0) || 0,
-        homeReds: parseInt(event.intRedHome || 0) || 0,
-        awayYellows: parseInt(event.intYellowAway || 0) || 0,
-        awayReds: parseInt(event.intRedAway || 0) || 0,
+        homeYellows: 0,
+        homeReds: 0,
+        awayYellows: 0,
+        awayReds: 0,
         totalYellows: 0,
         totalReds: 0
       };
       
+      if (fixture.events) {
+        fixture.events.forEach(event => {
+          if (event.type === 'Card') {
+            if (event.team.id === fixture.teams.home.id) {
+              if (event.detail === 'Yellow Card') cards.homeYellows++;
+              if (event.detail === 'Red Card') cards.homeReds++;
+            } else {
+              if (event.detail === 'Yellow Card') cards.awayYellows++;
+              if (event.detail === 'Red Card') cards.awayReds++;
+            }
+          }
+        });
+      }
+      
       cards.totalYellows = cards.homeYellows + cards.awayYellows;
       cards.totalReds = cards.homeReds + cards.awayReds;
       
-      console.log(`         [CARDS FOUND] ${eventId}: ${cards.totalYellows}🟨 ${cards.totalReds}🟥`);
+      console.log(`         [CARDS FOUND] ${fixtureId}: ${cards.totalYellows}🟨 ${cards.totalReds}🟥`);
       return cards;
     } else {
-      console.log(`         [NO DATA] EventID: ${eventId} - Sin resultados en TheSportsDB`);
+      console.log(`         [NO DATA] FixtureID: ${fixtureId} - Sin resultados en API-Football`);
     }
     return null;
   } catch (error) {
-    console.log(`         [ERROR] EventID: ${eventId} - ${error.message}`);
+    console.log(`         [ERROR] FixtureID: ${fixtureId} - ${error.message}`);
     return null;
   }
 }
@@ -174,17 +187,17 @@ async function syncTournament(tournamentKey) {
     });
     
     // Obtener tarjetas para TODOS los partidos finalizados
-    console.log(`   🟨 Obteniendo tarjetas de TheSportsDB para todos los partidos finalizados...`);
+    console.log(`   🟨 Obteniendo tarjetas de API-Football para todos los partidos finalizados...`);
     console.log(`   📊 Partidos finalizados encontrados: ${Object.entries(matches).filter(([_, m]) => m.status === 'finished' || m.result).length}`);
     
     const batch = db.batch();
     let totalWithCards = 0;
     
     for (const [matchId, match] of Object.entries(matches)) {
-      // Si el partido está terminado y tiene fixtureId, obtener tarjetas
+      // Si el partido está terminado y tiene fixtureId (que es el idAPIfootball), obtener tarjetas
       if ((match.status === 'finished' || match.result) && match.fixtureId) {
         console.log(`      Procesando: ${matchId} (fixtureId: ${match.fixtureId})`);
-        const cards = await fetchCardsFromTheSportsDB(match.fixtureId);
+        const cards = await fetchCardsFromAPIFootball(match.fixtureId);
         if (cards && (!match.totalYellows || !match.totalReds)) {
           // Solo actualizar si no tiene tarjetas aún
           const ref = db.collection(tour.collection).doc(matchId);
@@ -206,7 +219,7 @@ async function syncTournament(tournamentKey) {
     // También agregar tarjetas a los partidos que se acaban de actualizar (si no las tiene)
     for (const [matchId, data] of Object.entries(updates)) {
       if (data.fixtureId && !data.totalYellows) {
-        const cards = await fetchCardsFromTheSportsDB(data.fixtureId);
+        const cards = await fetchCardsFromAPIFootball(data.fixtureId);
         if (cards) {
           data.homeYellows = cards.homeYellows;
           data.homeReds = cards.homeReds;
