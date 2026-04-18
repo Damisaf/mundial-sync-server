@@ -65,33 +65,21 @@ async function syncTournament(tournamentKey) {
 
     console.log(`   📊 Total de matches en BD: ${Object.keys(matches).length}`);
 
-    // Detectar ronda actual
+    // Detectar ronda más cercana a hoy
     const now = new Date();
-    let roundToSync = null;
-    let earliestFutureMatch = null;
+    let closestMatch = null;
+    let closestDiff = Infinity;
 
     Object.values(matches).forEach(m => {
       const d = m.matchDate?.toDate ? m.matchDate.toDate() : new Date(m.matchDate || 0);
-
-      if (d <= now && !m.result) {
-        if (!roundToSync || d > new Date(roundToSync.matchDate || 0)) {
-          roundToSync = m;
-        }
-      }
-
-      if (d > now) {
-        if (!earliestFutureMatch || d < new Date(earliestFutureMatch.matchDate || 0)) {
-          earliestFutureMatch = m;
-        }
+      const diff = Math.abs(d - now);
+      if (diff < closestDiff) {
+        closestDiff = diff;
+        closestMatch = m;
       }
     });
 
-    let roundNum = null;
-    if (roundToSync?.stage) {
-      roundNum = roundToSync.stage.replace(/\D/g, '');
-    } else if (earliestFutureMatch?.stage) {
-      roundNum = earliestFutureMatch.stage.replace(/\D/g, '');
-    }
+    let roundNum = closestMatch?.stage ? closestMatch.stage.replace(/\D/g, '') : null;
 
     if (!roundNum) {
       console.log(`   ⚠️  No se encontró ronda para sincronizar`);
