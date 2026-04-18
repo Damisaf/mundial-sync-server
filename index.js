@@ -55,15 +55,22 @@ async function syncTournament(tournamentKey) {
   console.log(`\n📡 Sincronizando ${tour.name}...`);
 
   try {
-    // Obtener todos los matches del torneo
-    const snapshot = await db.collection(tour.collection).get();
-    const matches = {};
+    // Solo leer partidos de los últimos 2 días y los próximos 2 días
+    const now = new Date();
+    const desde = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // hace 2 días
+    const hasta = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000); // en 2 días
 
+    const snapshot = await db.collection(tour.collection)
+      .where('matchDate', '>=', desde)
+      .where('matchDate', '<=', hasta)
+      .get();
+
+    const matches = {};
     snapshot.forEach(doc => {
       matches[doc.id] = doc.data();
     });
 
-    console.log(`   📊 Total de matches en BD: ${Object.keys(matches).length}`);
+    console.log(`   📊 Partidos en ventana de 4 días: ${Object.keys(matches).length}`);
 
     // Detectar ronda más cercana a hoy
     const now = new Date();
