@@ -108,10 +108,12 @@ async function syncTournament(tournamentKey) {
 
       const hasChanged = cached.homeScore !== homeScore || cached.awayScore !== awayScore || cached.status !== (e.strStatus === 'Match Finished' ? 'finished' : 'live');
       if (hasChanged) {
-        const isFinished = e.strStatus === 'Match Finished';
+        const matchDate = cached.matchDate?.toDate ? cached.matchDate.toDate() : new Date(cached.matchDate || 0);
+        const hoursElapsed = (now - matchDate) / (1000 * 60 * 60);
+        const isFinished = e.strStatus === 'Match Finished' || hoursElapsed >= 2;
         const result = isFinished ? (homeScore > awayScore ? '1' : homeScore === awayScore ? 'X' : '2') : undefined;
 
-        console.log(`   🔍 strStatus="${e.strStatus}" isFinished=${isFinished}`);
+        console.log(`   🔍 strStatus="${e.strStatus}" horasTranscurridas=${hoursElapsed.toFixed(1)} isFinished=${isFinished}`);
 
         const update = {
           homeScore,
@@ -128,6 +130,26 @@ async function syncTournament(tournamentKey) {
         updatedCount++;
       }
     });
+
+    // Verificar partidos en vivo que ya deberían haber terminado (timeout 2hs)
+    for (const [matchId, match] of Object.entries(matches)) {
+      if (match.status === 'live') {
+        const matchDate = match.matchDate?.toDate ? match.matchDate.toDate() : new Date(match.matchDate || 0);
+        const hoursElapsed = (now - matchDate) / (1000 * 60 * 60);
+        if (hoursElapsed >= 2) {
+          const result = match.homeScore > match.awayScore ? '1' : match.homeScore === match.awayScore ? 'X' : '2';
+          updates[matchId] = updates[matchId] || {};
+          updates[matchId] = {
+            ...match,
+            status: 'finished',
+            result,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+          console.log(`   ⏱️ ${match.homeName} ${match.homeScore}-${match.awayScore} ${match.awayName} [TIMEOUT - marcado como FINALIZADO]`);
+          updatedCount++;
+        }
+      }
+    }
 
     // Guardar en Firebase
     if (updatedCount > 0) {
