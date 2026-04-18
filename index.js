@@ -123,6 +123,8 @@ async function syncTournament(tournamentKey) {
         const isFinished = e.strStatus === 'Match Finished';
         const result = isFinished ? (homeScore > awayScore ? '1' : homeScore === awayScore ? 'X' : '2') : undefined;
 
+        console.log(`   🔍 strStatus="${e.strStatus}" isFinished=${isFinished}`);
+
         const update = {
           homeScore,
           awayScore,
