@@ -118,20 +118,23 @@ async function syncTournament(tournamentKey) {
       const cached = matches[matchId];
       if (!cached) return;
 
-      const hasChanged = cached.homeScore !== homeScore || cached.awayScore !== awayScore;
+      const hasChanged = cached.homeScore !== homeScore || cached.awayScore !== awayScore || cached.status !== (e.strStatus === 'Match Finished' ? 'finished' : 'live');
       if (hasChanged) {
-        const result = homeScore > awayScore ? '1' : homeScore === awayScore ? 'X' : '2';
+        const isFinished = e.strStatus === 'Match Finished';
+        const result = isFinished ? (homeScore > awayScore ? '1' : homeScore === awayScore ? 'X' : '2') : undefined;
 
-        updates[matchId] = {
+        const update = {
           homeScore,
           awayScore,
-          result,
-          status: 'finished',
+          status: isFinished ? 'finished' : 'live',
           fixtureId: e.idEvent,
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         };
+        if (result !== undefined) update.result = result;
 
-        console.log(`   ✅ ${e.strHomeTeam} ${homeScore}-${awayScore} ${e.strAwayTeam} [ACTUALIZADO]`);
+        updates[matchId] = update;
+
+        console.log(`   ${isFinished ? '✅' : '🔴'} ${e.strHomeTeam} ${homeScore}-${awayScore} ${e.strAwayTeam} [${isFinished ? 'FINALIZADO' : 'EN VIVO'}]`);
         updatedCount++;
       }
     });
