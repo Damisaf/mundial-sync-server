@@ -73,7 +73,6 @@ async function syncTournament(tournamentKey) {
     console.log(`   📊 Partidos en ventana de 4 días: ${Object.keys(matches).length}`);
 
     // Detectar ronda más cercana a hoy
-    const now = new Date();
     let closestMatch = null;
     let closestDiff = Infinity;
 
