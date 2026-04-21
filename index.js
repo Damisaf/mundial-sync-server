@@ -199,6 +199,21 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Endpoint tabla Liga Argentina
+  if (req.url === '/tabla-debug') {
+    try {
+      const response = await axios.get(
+        'https://info.afa.org.ar/deposito/html/v3/htmlCenter/data/deportes/futbol/primeraa/pages/es/posiciones.html?h=dfMc-page-59a3b20e-3e75-4f44-a97a-793483652770',
+        { headers: { 'Referer': 'https://www.afa.com.ar' }, timeout: 10000 }
+      );
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(response.data.substring(0, 3000));
+    } catch (error) {
+      res.writeHead(500);
+      res.end(error.message);
+    }
+    return;
+  }
+
   if (req.url === '/tabla-liga') {
     try {
       console.log('📊 Fetching tabla Liga Argentina desde AFA...');
