@@ -227,48 +227,32 @@ const server = http.createServer(async (req, res) => {
 
       const html = response.data;
 
-      // Parsear zonas y equipos del HTML
-      const zonas = [];
-      const zonaRegex = /<thead[^>]*>[\s\S]*?<th[^>]*>(Grupo [AB]|Equipo)<\/th>[\s\S]*?<\/thead>([\s\S]*?)(?=<thead|<\/table>)/gi;
-      const equipoRegex = /<tr class="linea[^"]*">[\s\S]*?<td class="pos">(\d+)<\/td>[\s\S]*?data-team-id="(\d+)">([\s\S]*?)<\/a>[\s\S]*?rounded-circle">(\d+)<\/span>[\s\S]*?border-primary">(\d+)<\/div>[\s\S]*?border-primary">(\d+)<\/div>[\s\S]*?border-primary">(\d+)<\/div>[\s\S]*?border-primary">(\d+)<\/div>[\s\S]*?<\/tr>/gi;
-
-      // Extraer nombre de zona
-      const zonaNameRegex = /<th[^>]*>(Grupo [AB])<\/th>/i;
-
-      // Buscar Grupo A y Grupo B
-      const grupoAMatch = html.indexOf('Grupo A');
-      const grupoBMatch = html.indexOf('Grupo B');
-
-      if (grupoAMatch === -1) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'No se encontraron grupos' }));
-        return;
-      }
-
-      // Extraer equipos con regex simple
+      // Extraer todas las filas de equipos
       const rows = [];
-      const trRegex = /<tr class="linea e_(\d+)">([\s\S]*?)<\/tr>/gi;
+      const trRegex = /<tr class="linea e_(\d+)">([\s\S]*?)<\/tr>\n/g;
       let trMatch;
       while ((trMatch = trRegex.exec(html)) !== null) {
         const teamId = trMatch[1];
         const rowHtml = trMatch[2];
 
         const posMatch = rowHtml.match(/<td class="pos">(\d+)<\/td>/);
-        const nameMatch = rowHtml.match(/data-team-id="\d+">([\s\S]*?)<\/a>/);
+        const nameMatch = rowHtml.match(/data-team-id="\d+">(.*?)<\/a>/);
         const ptsMatch = rowHtml.match(/rounded-circle">(\d+)<\/span>/);
-        const nums = [...rowHtml.matchAll(/border-(?:left )?border-right border-primary">(\d+)<\/div>/g)].map(m => m[1]);
-        const dfMatch = rowHtml.match(/<td class="d-none d-sm-table-cell">(-?\d+)<\/td>/);
+        // Todos los números dentro de divs border-primary
+        const allNums = [...rowHtml.matchAll(/border-primary">\s*(\d+)\s*<\/div>/g)].map(m => parseInt(m[1]));
+        // Último td sin div (diferencia de goles, puede ser negativo)
+        const dfMatch = rowHtml.match(/<td class="d-none d-sm-table-cell">\s*(-?\d+)\s*<\/td>/);
 
-        if (posMatch && nameMatch && ptsMatch && nums.length >= 4) {
+        if (posMatch && nameMatch && ptsMatch && allNums.length >= 4) {
           rows.push({
             teamId,
             pos: parseInt(posMatch[1]),
             name: nameMatch[1].trim(),
             pts: parseInt(ptsMatch[1]),
-            pj: parseInt(nums[0]) || 0,
-            pg: parseInt(nums[1]) || 0,
-            pe: parseInt(nums[2]) || 0,
-            pp: parseInt(nums[3]) || 0,
+            pj: allNums[0] || 0,
+            pg: allNums[1] || 0,
+            pe: allNums[2] || 0,
+            pp: allNums[3] || 0,
             df: dfMatch ? parseInt(dfMatch[1]) : 0
           });
         }
