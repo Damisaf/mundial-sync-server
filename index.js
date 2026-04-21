@@ -5,11 +5,9 @@ const axios = require('axios');
 let serviceAccount;
 
 if (process.env.FIREBASE_KEY_BASE64) {
-  // Si está en base64 (Render)
   const keyString = Buffer.from(process.env.FIREBASE_KEY_BASE64, 'base64').toString('utf8');
   serviceAccount = JSON.parse(keyString);
 } else {
-  // Si está en archivo local (desarrollo)
   serviceAccount = require('./firebase-key.json');
 }
 
@@ -21,7 +19,6 @@ admin.initializeApp({
 const db = admin.firestore();
 const SPORTSDB_KEY = '123';
 
-// Torneos a sincronizar
 const TOURNAMENTS = {
   mundial: {
     name: 'Mundial 2026',
@@ -37,7 +34,6 @@ const TOURNAMENTS = {
   }
 };
 
-// Función para obtener datos de TheSportsDB
 async function fetchRoundData(leagueId, round, season) {
   try {
     const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsround.php?id=${leagueId}&r=${round}&s=${season}`;
@@ -49,16 +45,14 @@ async function fetchRoundData(leagueId, round, season) {
   }
 }
 
-// Función para sincronizar un torneo
 async function syncTournament(tournamentKey) {
   const tour = TOURNAMENTS[tournamentKey];
   console.log(`\n📡 Sincronizando ${tour.name}...`);
 
   try {
-    // Solo leer partidos de los últimos 2 días y los próximos 2 días
     const now = new Date();
-    const desde = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // hace 2 días
-    const hasta = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000); // en 2 días
+    const desde = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const hasta = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
     const snapshot = await db.collection(tour.collection)
       .where('matchDate', '>=', desde)
@@ -72,7 +66,6 @@ async function syncTournament(tournamentKey) {
 
     console.log(`   📊 Partidos en ventana de 4 días: ${Object.keys(matches).length}`);
 
-    // Detectar ronda más cercana a hoy
     let closestMatch = null;
     let closestDiff = Infinity;
 
@@ -94,11 +87,9 @@ async function syncTournament(tournamentKey) {
 
     console.log(`   📋 Sincronizando ronda ${roundNum}...`);
 
-    // Obtener datos de TheSportsDB
     const events = await fetchRoundData(tour.leagueId, roundNum, tour.season);
     console.log(`   ✅ ${events.length} eventos obtenidos`);
 
-    // Procesar resultados
     let updatedCount = 0;
     const updates = {};
 
@@ -119,8 +110,6 @@ async function syncTournament(tournamentKey) {
         const isFinished = e.strStatus === 'Match Finished' || hoursElapsed >= 2;
         const result = isFinished ? (homeScore > awayScore ? '1' : homeScore === awayScore ? 'X' : '2') : undefined;
 
-        console.log(`   🔍 strStatus="${e.strStatus}" horasTranscurridas=${hoursElapsed.toFixed(1)} isFinished=${isFinished}`);
-
         const update = {
           homeScore,
           awayScore,
@@ -131,42 +120,33 @@ async function syncTournament(tournamentKey) {
         if (result !== undefined) update.result = result;
 
         updates[matchId] = update;
-
-        console.log(`   ${isFinished ? '✅' : '🔴'} ${e.strHomeTeam} ${homeScore}-${awayScore} ${e.strAwayTeam} [${isFinished ? 'FINALIZADO' : 'EN VIVO'}]`);
         updatedCount++;
       }
     });
 
-    // Verificar partidos en vivo que ya deberían haber terminado (timeout 2hs)
     for (const [matchId, match] of Object.entries(matches)) {
       if (match.status === 'live') {
         const matchDate = match.matchDate?.toDate ? match.matchDate.toDate() : new Date(match.matchDate || 0);
         const hoursElapsed = (now - matchDate) / (1000 * 60 * 60);
         if (hoursElapsed >= 2) {
           const result = match.homeScore > match.awayScore ? '1' : match.homeScore === match.awayScore ? 'X' : '2';
-          updates[matchId] = updates[matchId] || {};
           updates[matchId] = {
             ...match,
             status: 'finished',
             result,
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
           };
-          console.log(`   ⏱️ ${match.homeName} ${match.homeScore}-${match.awayScore} ${match.awayName} [TIMEOUT - marcado como FINALIZADO]`);
           updatedCount++;
         }
       }
     }
 
-    // Guardar en Firebase
     if (updatedCount > 0) {
-      console.log(`   💾 Guardando ${updatedCount} cambios en BD...`);
-
       const batch = db.batch();
       Object.entries(updates).forEach(([matchId, data]) => {
         const ref = db.collection(tour.collection).doc(matchId);
         batch.update(ref, data);
       });
-
       await batch.commit();
       console.log(`   ✅ Guardado exitoso (${updatedCount} actualizados)`);
     } else {
@@ -178,7 +158,6 @@ async function syncTournament(tournamentKey) {
   }
 }
 
-// Función principal
 async function syncAll() {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`🔄 SYNC AUTOMÁTICO - ${new Date().toLocaleString('es-AR')}`);
@@ -187,34 +166,130 @@ async function syncAll() {
   try {
     await syncTournament('mundial');
     await syncTournament('liga');
-
     console.log(`\n✅ SINCRONIZACIÓN COMPLETADA`);
   } catch (error) {
     console.error('❌ Error en sincronización general:', error);
   }
 }
 
-// Ejecutar sincronización cada 5 minutos
 console.log('🚀 Servidor de sincronización iniciado');
 console.log('⏰ Sincronizando cada 5 minutos...');
-
-// Sincronizar inmediatamente al iniciar
 syncAll();
-
-// Luego cada 5 minutos (300000 ms)
 setInterval(syncAll, 300000);
 
-// Mantener el servidor activo
 const PORT = process.env.PORT || 3000;
 const http = require('http');
-const server = http.createServer((req, res) => {
+
+const server = http.createServer(async (req, res) => {
+  // Headers CORS para permitir acceso desde la app
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   if (req.url === '/health') {
     res.writeHead(200);
     res.end('OK');
-  } else {
-    res.writeHead(200);
-    res.end('Sync server running...');
+    return;
   }
+
+  // Endpoint tabla Liga Argentina
+  if (req.url === '/tabla-liga') {
+    try {
+      console.log('📊 Fetching tabla Liga Argentina desde AFA...');
+      const response = await axios.get(
+        'https://info.afa.org.ar/deposito/html/v3/htmlCenter/data/deportes/futbol/primeraa/pages/es/posiciones.html?h=dfMc-page-59a3b20e-3e75-4f44-a97a-793483652770',
+        { headers: { 'Referer': 'https://www.afa.com.ar' }, timeout: 10000 }
+      );
+
+      const html = response.data;
+
+      // Parsear zonas y equipos del HTML
+      const zonas = [];
+      const zonaRegex = /<thead[^>]*>[\s\S]*?<th[^>]*>(Grupo [AB]|Equipo)<\/th>[\s\S]*?<\/thead>([\s\S]*?)(?=<thead|<\/table>)/gi;
+      const equipoRegex = /<tr class="linea[^"]*">[\s\S]*?<td class="pos">(\d+)<\/td>[\s\S]*?data-team-id="(\d+)">([\s\S]*?)<\/a>[\s\S]*?rounded-circle">(\d+)<\/span>[\s\S]*?border-primary">(\d+)<\/div>[\s\S]*?border-primary">(\d+)<\/div>[\s\S]*?border-primary">(\d+)<\/div>[\s\S]*?border-primary">(\d+)<\/div>[\s\S]*?<\/tr>/gi;
+
+      // Extraer nombre de zona
+      const zonaNameRegex = /<th[^>]*>(Grupo [AB])<\/th>/i;
+
+      // Buscar Grupo A y Grupo B
+      const grupoAMatch = html.indexOf('Grupo A');
+      const grupoBMatch = html.indexOf('Grupo B');
+
+      if (grupoAMatch === -1) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'No se encontraron grupos' }));
+        return;
+      }
+
+      // Extraer equipos con regex simple
+      const rows = [];
+      const trRegex = /<tr class="linea e_(\d+)">([\s\S]*?)<\/tr>/gi;
+      let trMatch;
+      while ((trMatch = trRegex.exec(html)) !== null) {
+        const teamId = trMatch[1];
+        const rowHtml = trMatch[2];
+
+        const posMatch = rowHtml.match(/<td class="pos">(\d+)<\/td>/);
+        const nameMatch = rowHtml.match(/data-team-id="\d+">([\s\S]*?)<\/a>/);
+        const ptsMatch = rowHtml.match(/rounded-circle">(\d+)<\/span>/);
+        const nums = [...rowHtml.matchAll(/border-(?:left )?border-right border-primary">(\d+)<\/div>/g)].map(m => m[1]);
+        const dfMatch = rowHtml.match(/<td class="d-none d-sm-table-cell">(-?\d+)<\/td>/);
+
+        if (posMatch && nameMatch && ptsMatch && nums.length >= 4) {
+          rows.push({
+            teamId,
+            pos: parseInt(posMatch[1]),
+            name: nameMatch[1].trim(),
+            pts: parseInt(ptsMatch[1]),
+            pj: parseInt(nums[0]) || 0,
+            pg: parseInt(nums[1]) || 0,
+            pe: parseInt(nums[2]) || 0,
+            pp: parseInt(nums[3]) || 0,
+            df: dfMatch ? parseInt(dfMatch[1]) : 0
+          });
+        }
+      }
+
+      // Dividir en Grupo A (primeros 15) y Grupo B (últimos 15)
+      // El HTML tiene primero Grupo A (pos 1-15) luego Grupo B (pos 1-15)
+      // Detectamos el cambio cuando pos vuelve a 1
+      let grupoA = [], grupoB = [], inGrupoB = false;
+      for (let i = 0; i < rows.length; i++) {
+        if (i > 0 && rows[i].pos === 1 && !inGrupoB) {
+          inGrupoB = true;
+        }
+        if (inGrupoB) grupoB.push(rows[i]);
+        else grupoA.push(rows[i]);
+      }
+
+      const result = {
+        grupos: [
+          { nombre: 'Grupo A', equipos: grupoA },
+          { nombre: 'Grupo B', equipos: grupoB }
+        ],
+        updatedAt: new Date().toISOString()
+      };
+
+      console.log(`📊 Tabla obtenida: ${grupoA.length} equipos Grupo A, ${grupoB.length} equipos Grupo B`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+
+    } catch (error) {
+      console.error('❌ Error fetching tabla:', error.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+    return;
+  }
+
+  res.writeHead(200);
+  res.end('Sync server running...');
 });
 
 server.listen(PORT, () => {
