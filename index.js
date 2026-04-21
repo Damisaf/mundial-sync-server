@@ -205,8 +205,11 @@ const server = http.createServer(async (req, res) => {
         'https://info.afa.org.ar/deposito/html/v3/htmlCenter/data/deportes/futbol/primeraa/pages/es/posiciones.html?h=dfMc-page-59a3b20e-3e75-4f44-a97a-793483652770',
         { headers: { 'Referer': 'https://www.afa.com.ar' }, timeout: 10000 }
       );
+      const html = response.data;
+      // Buscar primera fila de equipo
+      const idx = html.indexOf('class="linea e_');
       res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end(response.data.substring(0, 3000));
+      res.end(idx >= 0 ? html.substring(idx, idx + 2000) : 'No se encontraron filas. HTML length: ' + html.length);
     } catch (error) {
       res.writeHead(500);
       res.end(error.message);
