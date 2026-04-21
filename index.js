@@ -269,6 +269,9 @@ const server = http.createServer(async (req, res) => {
         if (inGrupoB) grupoB.push(rows[i]);
         else grupoA.push(rows[i]);
       }
+      // Cortar en 15 equipos cada grupo (ignorar tabla acumulada)
+      grupoA = grupoA.slice(0, 15);
+      grupoB = grupoB.slice(0, 15);
 
       const result = {
         grupos: [
