@@ -210,11 +210,55 @@ const http = require('http');
 
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
   if (req.url === '/health') { res.writeHead(200); res.end('OK'); return; }
+
+  // Endpoint para resetear contraseña de usuario
+  if (req.url === '/reset-password' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { uid, newPassword, adminToken } = JSON.parse(body);
+        if (!uid || !newPassword || !adminToken) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Faltan parámetros' }));
+          return;
+        }
+        // Verificar que el token es de un admin
+        const decoded = await admin.auth().verifyIdToken(adminToken);
+        const adminDoc = await db.collection('users').doc(decoded.uid).get();
+        const adminData = adminDoc.data();
+        if (!adminData || (!adminData.isAdmin && !adminData.groupAdmin)) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'No autorizado' }));
+          return;
+        }
+        // Si es group admin, verificar que el usuario pertenece a su grupo
+        if (!adminData.isAdmin && adminData.groupAdmin) {
+          const userDoc = await db.collection('users').doc(uid).get();
+          if (!userDoc.exists || userDoc.data().groupId !== adminData.groupId) {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Usuario no pertenece a tu grupo' }));
+            return;
+          }
+        }
+        // Cambiar contraseña usando Firebase Admin SDK
+        await admin.auth().updateUser(uid, { password: newPassword });
+        console.log(`🔑 Contraseña actualizada para uid: ${uid} por admin: ${decoded.uid}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch(e) {
+        console.error('❌ Error reset-password:', e.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: e.message }));
+      }
+    });
+    return;
+  }
 
   if (req.url === '/tabla-debug') {
     try {
