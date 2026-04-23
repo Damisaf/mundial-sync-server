@@ -238,23 +238,11 @@
     <!-- PARTIDOS + ESPECIALES -->
     <div id="tab-partidos" class="tab-content active">
       <div class="tab-header">
-        <div style="display:flex;align-items:center;gap:0;margin-bottom:8px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;width:fit-content">
-          <button id="subtab-btn-partidos" onclick="switchSubTab('partidos')"
-            style="padding:6px 16px;border-radius:calc(var(--radius-sm) - 2px);border:none;background:var(--green);color:#060d1a;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.15s">
-            🏟️ Partidos
-          </button>
-          <button id="subtab-btn-especiales" onclick="switchSubTab('especiales')"
-            style="padding:6px 16px;border-radius:calc(var(--radius-sm) - 2px);border:none;background:transparent;color:var(--text2);font-weight:500;font-size:13px;cursor:pointer;transition:all 0.15s">
-            ⭐ Especiales
-          </button>
-        </div>
-        <div id="subtab-partidos-content">
-          <div class="filter-row" id="stage-filters"></div>
-        </div>
-        <div id="subtab-especiales-content" style="display:none"></div>
+        <div id="subtab-toggle"></div>
+        <div class="filter-row" id="stage-filters"></div>
       </div>
       <div id="matches-container"></div>
-      <div id="specials-container" style="display:none"></div>
+      <div id="specials-container" style="display:none;padding-top:8px"></div>
     </div>
 
     <!-- TABLA -->
