@@ -78,12 +78,73 @@ async function closePredictions(tournamentKey, finishedMatchIds) {
   }
 }
 
+function translateStageServer(round) {
+  const r = parseInt(round);
+  if (r >= 160 && r <= 169) return 'Octavos de final';
+  if (r >= 170 && r <= 179) return 'Cuartos de final';
+  if (r >= 180 && r <= 189) return 'Semifinales';
+  if (r === 190) return 'Tercer puesto';
+  if (r === 191 || r === 200) return 'Final';
+  return `Fecha ${r}`;
+}
+
+async function importNewMatches(tournamentKey, events) {
+  const tour = TOURNAMENTS[tournamentKey];
+  if (!events || !events.length) return;
+  
+  let imported = 0;
+  const batch = db.batch();
+  
+  for (const e of events) {
+    const matchId = `match_${e.idEvent}`;
+    const docRef = db.collection(tour.collection).doc(matchId);
+    const existing = await docRef.get();
+    if (existing.exists) continue;
+    
+    const matchDate = new Date(e.strTimestamp || `${e.dateEvent}T${e.strTime || '00:00:00'}`);
+    const stage = translateStageServer(e.intRound);
+    
+    batch.set(docRef, {
+      fixtureId: e.idEvent,
+      homeName: e.strHomeTeam,
+      awayName: e.strAwayTeam,
+      homeBadge: e.strHomeTeamBadge || '',
+      awayBadge: e.strAwayTeamBadge || '',
+      matchDate: matchDate,
+      stage: stage,
+      status: 'scheduled',
+      homeScore: null,
+      awayScore: null,
+      leagueId: tour.leagueId,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    imported++;
+  }
+  
+  if (imported > 0) {
+    await batch.commit();
+    console.log(`   ✅ ${imported} partidos nuevos importados`);
+  }
+}
+
 async function syncTournament(tournamentKey) {
   const tour = TOURNAMENTS[tournamentKey];
   console.log(`\n📡 Sincronizando ${tour.name}...`);
 
   try {
     const now = new Date();
+    
+    // Importar partidos próximos que no estén en Firestore
+    try {
+      const nextRes = await axios.get(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsnextleague.php?id=${tour.leagueId}`);
+      const nextEvents = nextRes.data.events || [];
+      if (nextEvents.length > 0) {
+        await importNewMatches(tournamentKey, nextEvents);
+      }
+    } catch(e) {
+      console.log(`   ⚠️  No se pudieron importar próximos partidos: ${e.message}`);
+    }
+
     const desde = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
     const hasta = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
@@ -105,7 +166,21 @@ async function syncTournament(tournamentKey) {
       if (diff < closestDiff) { closestDiff = diff; closestMatch = m; }
     });
 
-    let roundNum = closestMatch?.stage ? closestMatch.stage.replace(/\D/g, '') : null;
+    // Determinar ronda: para stages eliminatorios buscar en la API directamente
+    let roundNum = null;
+    if (closestMatch?.stage) {
+      const nums = closestMatch.stage.replace(/\D/g, '');
+      if (nums) {
+        roundNum = nums;
+      } else {
+        // Stage eliminatorio — buscar ronda en mapa inverso
+        const stageToRound = {
+          'Octavos de final': '160', 'Cuartos de final': '170',
+          'Semifinales': '180', 'Tercer puesto': '190', 'Final': '200'
+        };
+        roundNum = stageToRound[closestMatch.stage] || null;
+      }
+    }
     if (!roundNum) { console.log(`   ⚠️  No se encontró ronda para sincronizar`); return; }
 
     console.log(`   📋 Sincronizando ronda ${roundNum}...`);
