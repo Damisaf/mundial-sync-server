@@ -139,7 +139,18 @@ async function syncTournament(tournamentKey) {
       const nextRes = await axios.get(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsnextleague.php?id=${tour.leagueId}`);
       const nextEvents = nextRes.data.events || [];
       if (nextEvents.length > 0) {
+        // Importar el próximo partido
         await importNewMatches(tournamentKey, nextEvents);
+        // También traer todos los partidos de esa misma ronda
+        const roundNum = nextEvents[0].intRound;
+        if (roundNum) {
+          const roundRes = await axios.get(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsround.php?id=${tour.leagueId}&r=${roundNum}&s=${tour.season}`);
+          const roundEvents = roundRes.data.events || [];
+          if (roundEvents.length > 0) {
+            await importNewMatches(tournamentKey, roundEvents);
+            console.log(`   📥 Ronda ${roundNum}: ${roundEvents.length} partidos verificados`);
+          }
+        }
       }
     } catch(e) {
       console.log(`   ⚠️  No se pudieron importar próximos partidos: ${e.message}`);
