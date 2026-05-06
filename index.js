@@ -286,10 +286,61 @@ async function syncAll() {
   }
 }
 
+let activeInterval = null;
+let isActiveModeOn = false;
+
+async function hasMatchesSoon() {
+  const now = new Date();
+  const window2h = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const window3h = new Date(now.getTime() - 3 * 60 * 60 * 1000); // partidos que empezaron hace hasta 3hs (en curso)
+
+  for (const tournamentKey of Object.keys(TOURNAMENTS)) {
+    const tour = TOURNAMENTS[tournamentKey];
+    try {
+      const snapshot = await db.collection(tour.collection)
+        .where('matchDate', '>=', window3h)
+        .where('matchDate', '<=', window2h)
+        .get();
+
+      for (const doc of snapshot.docs) {
+        const m = doc.data();
+        // Partido en curso o por empezar pronto
+        if (m.status !== 'finished') return true;
+      }
+    } catch(e) {}
+  }
+  return false;
+}
+
+async function smartSync() {
+  const soon = await hasMatchesSoon();
+
+  if (soon && !isActiveModeOn) {
+    // Activar modo cada 5 minutos
+    console.log('⚡ Partidos próximos detectados — activando sync cada 5 minutos');
+    isActiveModeOn = true;
+    if (activeInterval) clearInterval(activeInterval);
+    activeInterval = setInterval(async () => {
+      await syncAll();
+      const stillSoon = await hasMatchesSoon();
+      if (!stillSoon) {
+        console.log('😴 Sin partidos próximos — volviendo a modo pasivo (60 min)');
+        isActiveModeOn = false;
+        clearInterval(activeInterval);
+        activeInterval = setInterval(smartSync, 60 * 60 * 1000);
+      }
+    }, 5 * 60 * 1000);
+    await syncAll();
+  } else if (!soon) {
+    console.log('😴 Sin partidos próximos — próximo chequeo en 60 minutos');
+  }
+}
+
 console.log('🚀 Servidor de sincronización iniciado');
-console.log('⏰ Sincronizando cada 5 minutos...');
-syncAll();
-setInterval(syncAll, 300000);
+console.log('⏰ Modo inteligente: sync cada 5 min con partidos, cada 60 min sin ellos');
+smartSync();
+// Chequeo pasivo cada 60 minutos
+activeInterval = setInterval(smartSync, 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 const http = require('http');
