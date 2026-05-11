@@ -80,8 +80,8 @@ async function closePredictions(tournamentKey, finishedMatchIds) {
 
 function translateStageServer(round) {
   const r = parseInt(round);
-  if (r === 160 || r === 125) return 'Octavos de final';
-  if (r === 170 || r === 126) return 'Cuartos de final';
+  if (r === 160) return 'Octavos de final';
+  if (r === 125 || r === 170 || r === 126) return 'Cuartos de final';
   if (r === 180 || r === 127) return 'Semifinales';
   if (r === 190 || r === 128) return 'Tercer puesto';
   if (r === 191 || r === 129 || r === 200) return 'Final';
