@@ -80,11 +80,14 @@ async function closePredictions(tournamentKey, finishedMatchIds) {
 
 function translateStageServer(round) {
   const r = parseInt(round);
+  if (r === 160 || r === 125) return 'Octavos de final';
+  if (r === 170 || r === 126) return 'Cuartos de final';
+  if (r === 180 || r === 127) return 'Semifinales';
+  if (r === 190 || r === 128) return 'Tercer puesto';
+  if (r === 191 || r === 129 || r === 200) return 'Final';
   if (r >= 160 && r <= 169) return 'Octavos de final';
   if (r >= 170 && r <= 179) return 'Cuartos de final';
   if (r >= 180 && r <= 189) return 'Semifinales';
-  if (r === 190) return 'Tercer puesto';
-  if (r === 191 || r === 200) return 'Final';
   return `Fecha ${r}`;
 }
 
@@ -186,7 +189,7 @@ async function syncTournament(tournamentKey) {
       } else {
         // Stage eliminatorio — buscar ronda en mapa inverso
         const stageToRound = {
-          'Octavos de final': '160', 'Cuartos de final': '170',
+          'Octavos de final': '160', 'Cuartos de final': '125',
           'Semifinales': '180', 'Tercer puesto': '190', 'Final': '200'
         };
         roundNum = stageToRound[closestMatch.stage] || null;
