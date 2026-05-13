@@ -350,9 +350,12 @@ async function smartSync() {
 
 console.log('🚀 Servidor de sincronización iniciado');
 console.log('⏰ Modo inteligente: sync cada 5 min con partidos, cada 60 min sin ellos');
-smartSync();
-// Chequeo pasivo cada 60 minutos
-activeInterval = setInterval(smartSync, 60 * 60 * 1000);
+// Siempre sincronizar al arrancar
+syncAll().then(() => {
+  smartSync();
+  // Chequeo pasivo cada 60 minutos
+  activeInterval = setInterval(smartSync, 60 * 60 * 1000);
+});
 
 const PORT = process.env.PORT || 3000;
 const http = require('http');
