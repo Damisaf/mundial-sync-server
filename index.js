@@ -80,14 +80,11 @@ async function closePredictions(tournamentKey, finishedMatchIds) {
 
 function translateStageServer(round) {
   const r = parseInt(round);
-  if (r === 160) return 'Octavos de final';
-  if (r === 125 || r === 170 || r === 126) return 'Cuartos de final';
-  if (r === 180 || r === 127) return 'Semifinales';
-  if (r === 190 || r === 128) return 'Tercer puesto';
-  if (r === 191 || r === 129 || r === 200) return 'Final';
   if (r >= 160 && r <= 169) return 'Octavos de final';
   if (r >= 170 && r <= 179) return 'Cuartos de final';
   if (r >= 180 && r <= 189) return 'Semifinales';
+  if (r === 190) return 'Tercer puesto';
+  if (r === 191 || r === 200) return 'Final';
   return `Fecha ${r}`;
 }
 
@@ -189,7 +186,7 @@ async function syncTournament(tournamentKey) {
       } else {
         // Stage eliminatorio — buscar ronda en mapa inverso
         const stageToRound = {
-          'Octavos de final': '160', 'Cuartos de final': '125',
+          'Octavos de final': '160', 'Cuartos de final': '170',
           'Semifinales': '180', 'Tercer puesto': '190', 'Final': '200'
         };
         roundNum = stageToRound[closestMatch.stage] || null;
@@ -294,21 +291,33 @@ let isActiveModeOn = false;
 
 async function hasMatchesSoon() {
   const now = new Date();
-  const window2h = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const window3h = new Date(now.getTime() - 3 * 60 * 60 * 1000); // partidos que empezaron hace hasta 3hs (en curso)
+  const windowFuture = new Date(now.getTime() + 2 * 60 * 60 * 1000);  // 2hs hacia adelante
+  const windowPast = new Date(now.getTime() - 5 * 60 * 60 * 1000);    // 5hs hacia atrás (cubre partidos largos + timezone)
 
   for (const tournamentKey of Object.keys(TOURNAMENTS)) {
     const tour = TOURNAMENTS[tournamentKey];
     try {
+      // Primero: verificar si hay partidos con status 'live' (siempre activo)
+      const liveSnapshot = await db.collection(tour.collection)
+        .where('status', '==', 'live')
+        .get();
+      if (!liveSnapshot.empty) {
+        console.log(`   ⚡ Partido en vivo detectado en ${tour.name}`);
+        return true;
+      }
+
+      // Segundo: verificar ventana ampliada de partidos no terminados
       const snapshot = await db.collection(tour.collection)
-        .where('matchDate', '>=', window3h)
-        .where('matchDate', '<=', window2h)
+        .where('matchDate', '>=', windowPast)
+        .where('matchDate', '<=', windowFuture)
         .get();
 
       for (const doc of snapshot.docs) {
         const m = doc.data();
-        // Partido en curso o por empezar pronto
-        if (m.status !== 'finished') return true;
+        if (m.status !== 'finished') {
+          console.log(`   ⚡ Partido pendiente detectado: ${m.homeName} vs ${m.awayName}`);
+          return true;
+        }
       }
     } catch(e) {}
   }
@@ -397,34 +406,6 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ success: false, error: e.message }));
       }
     });
-    return;
-  }
-
-  // Endpoint para forzar importación de partidos nuevos
-  if (req.url === '/import-next' && req.method === 'GET') {
-    try {
-      let imported = 0;
-      for (const tournamentKey of Object.keys(TOURNAMENTS)) {
-        const tour = TOURNAMENTS[tournamentKey];
-        const nextRes = await axios.get(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsnextleague.php?id=${tour.leagueId}`);
-        const nextEvents = nextRes.data.events || [];
-        if (nextEvents.length > 0) {
-          await importNewMatches(tournamentKey, nextEvents);
-          const roundNum = nextEvents[0].intRound;
-          if (roundNum) {
-            const roundRes = await axios.get(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsround.php?id=${tour.leagueId}&r=${roundNum}&s=${tour.season}`);
-            const roundEvents = roundRes.data.events || [];
-            await importNewMatches(tournamentKey, roundEvents);
-            imported += roundEvents.length;
-          }
-        }
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true, message: `Importación completada. ${imported} partidos procesados.` }));
-    } catch(e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: false, error: e.message }));
-    }
     return;
   }
 
