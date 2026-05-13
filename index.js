@@ -409,6 +409,34 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Endpoint para forzar importación de partidos nuevos
+  if (req.url === '/import-next' && req.method === 'GET') {
+    try {
+      let imported = 0;
+      for (const tournamentKey of Object.keys(TOURNAMENTS)) {
+        const tour = TOURNAMENTS[tournamentKey];
+        const nextRes = await axios.get(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsnextleague.php?id=${tour.leagueId}`);
+        const nextEvents = nextRes.data.events || [];
+        if (nextEvents.length > 0) {
+          await importNewMatches(tournamentKey, nextEvents);
+          const roundNum = nextEvents[0].intRound;
+          if (roundNum) {
+            const roundRes = await axios.get(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsround.php?id=${tour.leagueId}&r=${roundNum}&s=${tour.season}`);
+            const roundEvents = roundRes.data.events || [];
+            await importNewMatches(tournamentKey, roundEvents);
+            imported += roundEvents.length;
+          }
+        }
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: `Importación completada. ${imported} partidos procesados.` }));
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
   if (req.url === '/tabla-debug') {
     try {
       const response = await axios.get(
