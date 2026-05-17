@@ -80,7 +80,7 @@ async function closePredictions(tournamentKey, finishedMatchIds) {
 
 function translateStageServer(round) {
   const r = parseInt(round);
-  if (r === 0) return 'Semifinales'; // TheSportsDB usa 0 para semifinales Liga Argentina
+  if (r === 0 || r === 150) return 'Semifinales'; // TheSportsDB usa 0 o 150 para semifinales
   if (r === 160) return 'Octavos de final';
   if (r === 125) return 'Cuartos de final';
   if (r >= 160 && r <= 169) return 'Octavos de final';
@@ -190,7 +190,7 @@ async function syncTournament(tournamentKey) {
         // Stage eliminatorio — buscar ronda en mapa inverso
         const stageToRound = {
           'Octavos de final': '160', 'Cuartos de final': '125',
-          'Semifinales': '0', 'Tercer puesto': '190', 'Final': '200'
+          'Semifinales': '150', 'Tercer puesto': '190', 'Final': '200'
         };
         roundNum = stageToRound[closestMatch.stage] || null;
       }
