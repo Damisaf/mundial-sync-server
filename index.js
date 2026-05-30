@@ -295,7 +295,7 @@ let isActiveModeOn = false;
 async function hasMatchesSoon() {
   const now = new Date();
   const windowFuture = new Date(now.getTime() + 2 * 60 * 60 * 1000);  // 2hs hacia adelante
-  const windowPast = new Date(now.getTime() - 5 * 60 * 60 * 1000);    // 5hs hacia atrás (cubre partidos largos + timezone)
+  const windowPast = new Date(now.getTime() - 8 * 60 * 60 * 1000);    // 8hs hacia atrás (cubre partidos del Mundial a cualquier horario)
 
   for (const tournamentKey of Object.keys(TOURNAMENTS)) {
     const tour = TOURNAMENTS[tournamentKey];
@@ -370,6 +370,19 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
   if (req.url === '/health') { res.writeHead(200); res.end('OK'); return; }
+
+  // Endpoint para forzar sincronización completa
+  if (req.url === '/sync-force' && req.method === 'GET') {
+    try {
+      await syncAll();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, message: 'Sincronización forzada completada' }));
+    } catch(e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
 
   // Endpoint para resetear contraseña de usuario
   if (req.url === '/reset-password' && req.method === 'POST') {
