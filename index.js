@@ -220,7 +220,7 @@ async function syncTournament(tournamentKey) {
       if (hasChanged) {
         const matchDate = cached.matchDate?.toDate ? cached.matchDate.toDate() : new Date(cached.matchDate || 0);
         const hoursElapsed = (now - matchDate) / (1000 * 60 * 60);
-        const isFinished = e.strStatus === 'Match Finished' || hoursElapsed >= 2;
+        const isFinished = e.strStatus === 'Match Finished' || hoursElapsed >= 2.5;
         const result = isFinished ? (homeScore > awayScore ? '1' : homeScore === awayScore ? 'X' : '2') : undefined;
 
         const update = {
@@ -240,15 +240,18 @@ async function syncTournament(tournamentKey) {
       }
     });
 
-    // Timeout 2hs para partidos en vivo
+    // Timeout 2.5hs para partidos en vivo (ampliado de 2hs para evitar cerrar antes de que termine el tiempo añadido/alargue)
+    // IMPORTANTE: usar el score ya actualizado en `updates` si existe, no el viejo de `matches`, para no perder goles de último momento
     for (const [matchId, match] of Object.entries(matches)) {
       if (match.status === 'live') {
         const matchDate = match.matchDate?.toDate ? match.matchDate.toDate() : new Date(match.matchDate || 0);
         const hoursElapsed = (now - matchDate) / (1000 * 60 * 60);
-        if (hoursElapsed >= 2) {
-          const result = match.homeScore > match.awayScore ? '1' : match.homeScore === match.awayScore ? 'X' : '2';
-          updates[matchId] = { ...match, status: 'finished', result, updatedAt: admin.firestore.FieldValue.serverTimestamp() };
-          newlyFinished.push(matchId);
+        if (hoursElapsed >= 2.5) {
+          // Usar el score más reciente: el de 'updates' (recién sincronizado) tiene prioridad sobre el viejo de Firestore
+          const latest = updates[matchId] || match;
+          const result = latest.homeScore > latest.awayScore ? '1' : latest.homeScore === latest.awayScore ? 'X' : '2';
+          updates[matchId] = { ...match, ...latest, status: 'finished', result, updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+          if (!newlyFinished.includes(matchId)) newlyFinished.push(matchId);
           updatedCount++;
         }
       }
@@ -320,6 +323,16 @@ async function hasMatchesSoon() {
         if (m.status !== 'finished') {
           console.log(`   ⚡ Partido pendiente detectado: ${m.homeName} vs ${m.awayName}`);
           return true;
+        }
+        // Período de gracia: seguir sincronizando partidos recién marcados 'finished' por 30 min más,
+        // para capturar correcciones de TheSportsDB (goles de tiempo añadido que llegan tarde)
+        const updatedAt = m.updatedAt?.toDate ? m.updatedAt.toDate() : null;
+        if (updatedAt) {
+          const minsSinceUpdate = (now - updatedAt) / (1000 * 60);
+          if (minsSinceUpdate <= 30) {
+            console.log(`   ⚡ Partido en período de gracia (recién finalizado): ${m.homeName} vs ${m.awayName}`);
+            return true;
+          }
         }
       }
     } catch(e) {}
