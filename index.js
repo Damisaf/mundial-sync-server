@@ -220,7 +220,7 @@ async function syncTournament(tournamentKey) {
       if (hasChanged) {
         const matchDate = cached.matchDate?.toDate ? cached.matchDate.toDate() : new Date(cached.matchDate || 0);
         const hoursElapsed = (now - matchDate) / (1000 * 60 * 60);
-        const isFinished = e.strStatus === 'Match Finished' || hoursElapsed >= 2.5;
+        const isFinished = e.strStatus === 'Match Finished' || hoursElapsed >= 3.5;
         const result = isFinished ? (homeScore > awayScore ? '1' : homeScore === awayScore ? 'X' : '2') : undefined;
 
         const update = {
@@ -246,7 +246,7 @@ async function syncTournament(tournamentKey) {
       if (match.status === 'live') {
         const matchDate = match.matchDate?.toDate ? match.matchDate.toDate() : new Date(match.matchDate || 0);
         const hoursElapsed = (now - matchDate) / (1000 * 60 * 60);
-        if (hoursElapsed >= 2.5) {
+        if (hoursElapsed >= 3.5) {
           // Usar el score más reciente: el de 'updates' (recién sincronizado) tiene prioridad sobre el viejo de Firestore
           const latest = updates[matchId] || match;
           const result = latest.homeScore > latest.awayScore ? '1' : latest.homeScore === latest.awayScore ? 'X' : '2';
