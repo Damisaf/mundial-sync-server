@@ -241,13 +241,20 @@ async function syncTournament(tournamentKey) {
       }
     });
 
-    // Timeout 2.5hs para partidos en vivo (ampliado de 2hs para evitar cerrar antes de que termine el tiempo añadido/alargue)
+    // Timeout 2.5hs para partidos en vivo — cubre 90' + descuento + alargue (30') + penales.
+    // IMPORTANTE: si la API reporta explícitamente que está en alargue (ET) o penales (P),
+    // NO forzar finished aunque hayan pasado 2hs — dejar que la API lo marque ella misma.
     // IMPORTANTE: usar el score ya actualizado en `updates` si existe, no el viejo de `matches`, para no perder goles de último momento
     for (const [matchId, match] of Object.entries(matches)) {
       if (match.status === 'live') {
+        const liveEvent = events.find(e => `match_${e.idEvent}` === matchId);
+        const currentStatus = liveEvent?.strStatus || '';
+        // Si la API dice que sigue en juego (alargue o penales), no forzar cierre
+        if (['ET', 'P', 'BT'].includes(currentStatus)) continue;
+
         const matchDate = match.matchDate?.toDate ? match.matchDate.toDate() : new Date(match.matchDate || 0);
         const hoursElapsed = (now - matchDate) / (1000 * 60 * 60);
-        if (hoursElapsed >= 2) {
+        if (hoursElapsed >= 2.5) {
           // Usar el score más reciente: el de 'updates' (recién sincronizado) tiene prioridad sobre el viejo de Firestore
           const latest = updates[matchId] || match;
           const result = latest.homeScore > latest.awayScore ? '1' : latest.homeScore === latest.awayScore ? 'X' : '2';
