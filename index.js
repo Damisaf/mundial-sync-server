@@ -190,8 +190,8 @@ async function syncTournament(tournamentKey) {
         // Stage eliminatorio — buscar ronda en mapa inverso
         const stageToRound = {
           'Dieciseisavos de final': '32',
-          'Octavos de final': '160', 'Cuartos de final': '125',
-          'Semifinales': '150', 'Tercer puesto': '190', 'Final': '200'
+          'Octavos de final': '16',
+          'Cuartos de final': '125', 'Semifinales': '150', 'Tercer puesto': '190', 'Final': '200'
         };
         roundNum = stageToRound[closestMatch.stage] || null;
       }
