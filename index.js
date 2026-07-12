@@ -191,7 +191,7 @@ async function syncTournament(tournamentKey) {
         const stageToRound = {
           'Dieciseisavos de final': '32',
           'Octavos de final': '16',
-          'Cuartos de final': '125', 'Semifinales': '0', 'Tercer puesto': '190', 'Final': '200'
+          'Cuartos de final': '125', 'Semifinales': '150', 'Tercer puesto': '190', 'Final': '200'
         };
         roundNum = stageToRound[closestMatch.stage] || null;
       }
