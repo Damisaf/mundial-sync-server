@@ -81,13 +81,14 @@ async function closePredictions(tournamentKey, finishedMatchIds) {
 function translateStageServer(round) {
   const r = parseInt(round);
   if (r === 0 || r === 150) return 'Semifinales'; // TheSportsDB usa 0 o 150 para semifinales
-  if (r === 160) return 'Octavos de final';
   if (r === 125) return 'Cuartos de final';
-  if (r >= 160 && r <= 169) return 'Octavos de final';
+  if (r === 160 || r === 200) return '3er puesto y Final'; // CONFIRMADO: 160=Tercer puesto, 200=Final del Mundial 2026
+  if (r === 16) return 'Octavos de final';
+  if (r === 32) return 'Dieciseisavos de final';
+  if (r >= 160 && r <= 169) return '3er puesto y Final';
   if (r >= 170 && r <= 179) return 'Cuartos de final';
   if (r >= 180 && r <= 189) return 'Semifinales';
-  if (r === 190) return 'Tercer puesto';
-  if (r === 191 || r === 200) return 'Final';
+  if (r === 190 || r === 191) return '3er puesto y Final';
   return `Fecha ${r}`;
 }
 
@@ -191,7 +192,7 @@ async function syncTournament(tournamentKey) {
         const stageToRound = {
           'Dieciseisavos de final': '32',
           'Octavos de final': '16',
-          'Cuartos de final': '125', 'Semifinales': '150', 'Tercer puesto': '190', 'Final': '200'
+          'Cuartos de final': '125', 'Semifinales': '150', '3er puesto y Final': '160', 'Tercer puesto': '160', 'Final': '200'
         };
         roundNum = stageToRound[closestMatch.stage] || null;
       }
